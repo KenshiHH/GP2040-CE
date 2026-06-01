@@ -68,7 +68,6 @@ void RotaryEncoderInput::setup()
 void RotaryEncoderInput::process()
 {
     Gamepad * gamepad = Storage::getInstance().GetGamepad();
-
     uint32_t now = getMillis();
 
     for (uint8_t i = 0; i < MAX_ENCODERS; i++) {
@@ -84,10 +83,24 @@ void RotaryEncoderInput::process()
                 if (encoderState[i].pinA != pinAValue || encoderState[i].pinB != pinBValue) {
                     if ((encoderState[i].pinA == encoderState[i].prevA) && (encoderState[i].pinB == encoderState[i].prevB)) {
                         if ((encoderState[i].pinA && !encoderState[i].pinB && pinBValue) || (!encoderState[i].pinA && encoderState[i].pinB && !pinBValue)) {
-                            encoderValues[i]+=encoderIncrement;
+                            encoderValues[i] += encoderIncrement;
                         } else if ((!encoderState[i].pinA && encoderState[i].pinB && pinBValue) || (encoderState[i].pinA && !encoderState[i].pinB && !pinBValue)) {
-                            encoderValues[i]-=encoderIncrement;
+                            encoderValues[i] -= encoderIncrement;
                         }
+
+                        // ── CLAMP raw value so overshoot doesn't accumulate ──
+                        if (!encoderMap[i].allowWrapAround) {
+                            int32_t totalPositions = ENCODER_RADIUS * (int32_t)(encoderMap[i].pulsesPerRevolution / (ENCODER_PRECISION * encoderMap[i].multiplier));
+                            if ((encoderMap[i].mode == ENCODER_MODE_LEFT_TRIGGER) || (encoderMap[i].mode == ENCODER_MODE_RIGHT_TRIGGER)) {
+                                if (encoderValues[i] < 0) encoderValues[i] = 0;
+                                if (encoderValues[i] > (int32_t)totalPositions) encoderValues[i] = totalPositions;
+                            } else {
+                                int32_t halfRange = totalPositions / 2;
+                                if (encoderValues[i] < -halfRange) encoderValues[i] = -halfRange;
+                                if (encoderValues[i] > halfRange) encoderValues[i] = halfRange;
+                            }
+                        }
+                        // ────────────────────────────────────────────────────
                     }
                 }
 
